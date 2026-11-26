@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.com.cinesuggest.cineSuggest"],
+        "components": [
+          { "/": "/ami/*", "comment": "Le ticket d'un ami" },
+          { "/": "/ami", "comment": "Le ticket d'un ami (sans barre finale)" }
+        ]
+      }
+    ]
+  }
+}
