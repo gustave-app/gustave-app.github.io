@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Le ticket d'un ami · Gustave</title>
+<!--
+  Page du « ticket d'un ami », sans serveur : tout est dans le lien
+  (?f=<id TMDB, négatif pour une série>&t=<titre>&de=<prénom>).
+
+  App installée : Android (App Links) et iOS (Universal Links) ouvrent le lien
+  directement dans l'app, cette page ne s'affiche même pas.
+  Sinon : on tente d'ouvrir l'app (Android), puis on envoie vers la fiche du store
+  dès que PLAY_STORE_URL / APP_STORE_URL sont renseignées. En attendant, la page
+  montre le film et annonce l'app.
+
+  Publiée avec GitHub Pages sur le dépôt public gustave-app.github.io
+  (copie du dossier site/ du dépôt de l'app, qui reste privé). Voir site/README.md.
+-->
+<style>
+  :root { --bg: #fbf6ee; --card: #fff; --ink: #2a1f1a; --muted: #6f625a; --accent: #c2412d; --on-accent: #fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17120f; --card: #241d19; --ink: #f4ece4; --muted: #b9aba0; --accent: #ef6b52; --on-accent: #1a0d09; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 440px; margin: 0 auto; padding: 32px 16px 48px; }
+  .ticket { background: var(--card); border-radius: 18px; padding: 28px 22px; text-align: center; position: relative;
+            box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+  .ticket::before, .ticket::after { content: ""; position: absolute; top: 50%; width: 22px; height: 22px; border-radius: 50%;
+            background: var(--bg); transform: translateY(-50%); }
+  .ticket::before { left: -11px; } .ticket::after { right: -11px; }
+  .emoji { font-size: 44px; }
+  h1 { font-size: 24px; line-height: 1.25; margin: 8px 0 10px; }
+  p { color: var(--muted); margin: 0 0 20px; }
+  a.button { display: block; padding: 14px 18px; border-radius: 999px; background: var(--accent); color: var(--on-accent);
+             font-weight: 700; text-decoration: none; margin-top: 8px; }
+  a.button.secondary { background: transparent; color: var(--accent); border: 2px solid var(--accent); }
+  a.link { display: inline-block; margin-top: 16px; color: var(--accent); }
+  small { display: block; margin-top: 24px; color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="ticket">
+    <div class="emoji">💌</div>
+    <h1 id="title">Un ami te conseille un film</h1>
+    <p>Gustave le garde et te le ressort le soir où ton émotion lui correspond.</p>
+    <a class="button" id="store" href="#" hidden>Installer Gustave</a>
+    <a class="button secondary" id="open" href="gustave://open/ami">J'ai déjà Gustave : ouvrir</a>
+    <a class="link" id="tmdb" href="https://www.themoviedb.org/" rel="noopener">Voir le film sur TMDB</a>
+    <small id="soon">Pas encore Gustave ? L'app arrive bientôt sur l'App Store et Google Play.</small>
+  </div>
+</main>
+<script>
+  (function () {
+    // À renseigner à la publication : le lien ouvert sans l'app enverra sur la fiche du store.
+    var PLAY_STORE_URL = ''; // ex. 'https://play.google.com/store/apps/details?id=com.cinesuggest.cine_suggest'
+    var APP_STORE_URL = '';  // ex. 'https://apps.apple.com/app/id1234567890'
+    var ANDROID_PACKAGE = 'com.cinesuggest.cine_suggest';
+
+    var q = new URLSearchParams(location.search);
+    var id = parseInt(q.get('f') || '', 10);
+    var title = (q.get('t') || '').slice(0, 120);
+    var from = (q.get('de') || '').slice(0, 40);
+    if (title) {
+      document.getElementById('title').textContent = (from || 'Un ami') + ' te conseille ' + title;
+      document.title = title + ' · Gustave';
+    }
+    if (!isNaN(id) && id !== 0) {
+      document.getElementById('tmdb').href = 'https://www.themoviedb.org/' + (id < 0 ? 'tv/' + (-id) : 'movie/' + id);
+    }
+
+    var app = new URLSearchParams();
+    if (!isNaN(id)) app.set('f', String(id));
+    if (title) app.set('t', title);
+    if (from) app.set('de', from);
+    var query = app.toString();
+
+    var ua = navigator.userAgent || '';
+    var android = /Android/i.test(ua);
+    var ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
+    var store = android ? PLAY_STORE_URL : ios ? APP_STORE_URL : '';
+    if (store && android) {
+      // Le film suit l'installation (Play Install Referrer), pour une future version de l'app.
+      store += (store.indexOf('?') < 0 ? '?' : '&') + 'referrer=' + encodeURIComponent(query);
+    }
+
+    var open = document.getElementById('open');
+    if (android) {
+      // Intent Android : ouvre l'app si elle est là, sinon le store (ou reste sur cette page).
+      var fallback = store || location.href.split('#')[0] + (location.search ? '&' : '?') + 'noapp=1';
+      open.href = 'intent://open/ami?' + query + '#Intent;scheme=gustave;package=' + ANDROID_PACKAGE +
+          ';S.browser_fallback_url=' + encodeURIComponent(fallback) + ';end';
+    } else {
+      open.href = 'gustave://open/ami?' + query;
+    }
+
+    if (store) {
+      var install = document.getElementById('store');
+      install.href = store;
+      install.hidden = false;
+      document.getElementById('soon').hidden = true;
+    }
+
+    // Ouverture automatique, une seule fois : l'app si elle est installée (Android),
+    // sinon la fiche du store. Si App Links / Universal Links sont configurés et
+    // l'app installée, on n'arrive jamais ici.
+    if (q.get('noapp') === '1') return;
+    if (android) {
+      location.replace(open.href);
+    } else if (ios && store) {
+      setTimeout(function () { location.replace(store); }, 600);
+    }
+  })();
+</script>
+</body>
+</html>
